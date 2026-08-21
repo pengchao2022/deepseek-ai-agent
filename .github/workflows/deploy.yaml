@@ -1,0 +1,54 @@
+name: Build and Push to AWS ECR
+
+on:
+  push:
+    branches:
+      - main  # 当你推送到 main 分支时自动触发构建和推送
+
+permissions:
+  id-token: require  # 允许使用 OIDC 获取临时 AWS 凭证
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 317429619308.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY: deepseek-ai-agent
+  # 将你的 AWS IAM Role ARN 填入下方，或者作为 GitHub Secrets 配置
+  AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }} 
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. 通过 OIDC 登录 AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 2. 登录 Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 3. 设置 Docker Buildx（支持多平台和高效缓存）
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. 构建并推送 Docker 镜像到 ECR
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -3,17 +3,16 @@ name: Build and Push to AWS ECR
 on:
   push:
     branches:
-      - main  # 当你推送到 main 分支时自动触发构建和推送
+      - main  
 
 permissions:
-  id-token: require  # 允许使用 OIDC 获取临时 AWS 凭证
+  id-token: write  
   contents: read
 
 env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: 317429619308.dkr.ecr.us-east-1.amazonaws.com
   ECR_REPOSITORY: deepseek-ai-agent
-  # 将你的 AWS IAM Role ARN 填入下方，或者作为 GitHub Secrets 配置
   AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }} 
 
 jobs:

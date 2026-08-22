@@ -134,13 +134,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-    
       - name: Output build summary
         run: |
-          echo "==========================================="
           echo "✅ Build completed successfully!"
           echo "Version: ${{ steps.version.outputs.new_version }}"
           echo "Bump type: ${{ steps.bump-type.outputs.bump_type }}"
           echo "Commit: ${{ github.sha }}"
-          echo "==========================================="
           

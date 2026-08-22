@@ -7,7 +7,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read  # 只需要读取权限
+  contents: read  
 
 env:
   AWS_REGION: us-east-1

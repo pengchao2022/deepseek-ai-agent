@@ -51,10 +51,8 @@ jobs:
       - name: Calculate next version from ECR
         id: version
         run: |
-          # 查询 ECR 中所有语义版本标签 (如 1.2.3)
           echo "Querying ECR for existing versions..."
           
-          # 获取所有镜像标签，提取语义版本号
           LATEST_VERSION=$(aws ecr describe-images \
             --repository-name ${{ env.ECR_REPOSITORY }} \
             --region ${{ env.AWS_REGION }} \
@@ -70,15 +68,15 @@ jobs:
             MINOR=$(echo "$LATEST_VERSION" | cut -d'.' -f2)
             PATCH=$(echo "$LATEST_VERSION" | cut -d'.' -f3)
           else
-            # ECR 中没有版本，从 0.0.0 开始
             MAJOR=0
             MINOR=0
             PATCH=0
             echo "No existing version found, starting from 0.0.0"
           fi
           
-          # 根据 commit 类型递增版本
+          # 获取前面步骤计算出来的 bump_type (major / minor / patch)
           BUMP_TYPE="${{ steps.bump-type.outputs.bump_type }}"
+          echo "Applying bump type: $BUMP_TYPE"
           
           case "$BUMP_TYPE" in
             major)
@@ -95,7 +93,6 @@ jobs:
               ;;
           esac
           
-          # 构建新版本号
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "major=$MAJOR" >> $GITHUB_OUTPUT

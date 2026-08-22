@@ -43,20 +43,17 @@ jobs:
             echo "Bump type: PATCH"
           fi
 
-    
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-     
       - name: Calculate next version from ECR
         id: version
         run: |
           echo "Querying ECR for existing versions..."
           
-          # get and print the tags 
           ALL_TAGS=$(aws ecr describe-images \
             --repository-name ${{ env.ECR_REPOSITORY }} \
             --region ${{ env.AWS_REGION }} \
@@ -81,7 +78,6 @@ jobs:
             echo "No existing version found, starting from 0.0.0"
           fi
           
-          # 获取 bump_type
           BUMP_TYPE="${{ steps.bump-type.outputs.bump_type }}"
           echo "Applying bump type: $BUMP_TYPE"
           
@@ -108,31 +104,27 @@ jobs:
           echo "major_minor=${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
           echo "✅ Final Calculated New version: $NEW_VERSION"
 
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-     
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.version.outputs.new_version }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
-          labels: |
-            org.opencontainers.image.version=${{ steps.version.outputs.new_version }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ steps.date.outputs.date }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: |
+          IMAGE_TAG="${{ steps.version.outputs.new_version }}"
+          
+          # build image 
+          echo "Building Docker image..."
+          docker build \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG \
+            --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
+            --label org.opencontainers.image.version=$IMAGE_TAG \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            .
+            
+          # push image to AWS ECR
+          echo "Pushing Docker image to ECR..."
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
       - name: Output build summary
         run: |
@@ -140,4 +132,3 @@ jobs:
           echo "Version: ${{ steps.version.outputs.new_version }}"
           echo "Bump type: ${{ steps.bump-type.outputs.bump_type }}"
           echo "Commit: ${{ github.sha }}"
-          

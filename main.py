@@ -12,12 +12,12 @@ import uvicorn
 
 app = FastAPI(title="Maxwell DeepSeek Tool-Enabled Agent", version="1.0")
 
-# 1. 定义 Agent 的工具
+# Define tools for agent
 @tool
 def calculate_shipping_cost(weight_kg: float, distance_km: float) -> str:
-    """计算货物的运费。当用户询问运费、物流成本时调用此工具。"""
+    """Calculate shipping costs. Use when user asks about freight or logistics fees"""
     cost = weight_kg * distance_km * 0.5
-    return f"计算结果：重量 {weight_kg}kg，距离 {distance_km}km，运费为 ${cost:.2f}"
+    return f"result: weight {weight_kg}kg, distance {distance_km}km, cost ${cost:.2f}"
 
 @tool
 def get_system_status(service_name: str) -> str:

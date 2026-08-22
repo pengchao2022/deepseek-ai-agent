@@ -77,7 +77,7 @@ jobs:
             echo "No existing version found, starting from 0.0.0"
           fi
           
-          # 获取前面步骤计算出来的 bump_type (major / minor / patch)
+          # get bump_type (major / minor / patch)
           BUMP_TYPE="${{ steps.bump-type.outputs.bump_type }}"
           echo "Applying bump type: $BUMP_TYPE"
           

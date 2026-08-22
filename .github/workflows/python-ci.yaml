@@ -56,20 +56,25 @@ jobs:
         run: |
           echo "Querying ECR for existing versions..."
           
-          LATEST_VERSION=$(aws ecr describe-images \
+          # 获取 ECR 所有标签并打印出来排查
+          ALL_TAGS=$(aws ecr describe-images \
             --repository-name ${{ env.ECR_REPOSITORY }} \
             --region ${{ env.AWS_REGION }} \
             --query 'imageDetails[].imageTags[]' \
-            --output text 2>/dev/null | \
-            grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
-            sort -V | \
-            tail -n 1 || echo "")
+            --output text 2>/dev/null || echo "")
+            
+          echo "All tags found in ECR: $ALL_TAGS"
+          
+          # 筛选出标准的语义版本号并按版本排序取最后一个（最新的）
+          LATEST_VERSION=$(echo "$ALL_TAGS" | tr '\t' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          
+          echo "Detected LATEST_VERSION from ECR: '$LATEST_VERSION'"
           
           if [[ -n "$LATEST_VERSION" ]]; then
-            echo "Latest version in ECR: $LATEST_VERSION"
             MAJOR=$(echo "$LATEST_VERSION" | cut -d'.' -f1)
             MINOR=$(echo "$LATEST_VERSION" | cut -d'.' -f2)
             PATCH=$(echo "$LATEST_VERSION" | cut -d'.' -f3)
+            echo "Parsed -> MAJOR: $MAJOR, MINOR: $MINOR, PATCH: $PATCH"
           else
             MAJOR=0
             MINOR=0
@@ -77,7 +82,7 @@ jobs:
             echo "No existing version found, starting from 0.0.0"
           fi
           
-          # get bump_type (major / minor / patch)
+          # 获取 bump_type
           BUMP_TYPE="${{ steps.bump-type.outputs.bump_type }}"
           echo "Applying bump type: $BUMP_TYPE"
           
@@ -102,9 +107,9 @@ jobs:
           echo "minor=$MINOR" >> $GITHUB_OUTPUT
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "major_minor=${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
-          echo "✅ New version: $NEW_VERSION"
+          echo "✅ Final Calculated New version: $NEW_VERSION"
 
-     
+          
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2

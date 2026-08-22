@@ -135,14 +135,8 @@ jobs:
         run: |
           echo "==========================================="
           echo "✅ Build completed successfully!"
-          echo "📦 Version: ${{ steps.version.outputs.new_version }}"
-          echo "🔄 Bump type: ${{ steps.bump-type.outputs.bump_type }}"
-          echo "📝 Commit: ${{ github.sha }}"
+          echo "Version: ${{ steps.version.outputs.new_version }}"
+          echo "Bump type: ${{ steps.bump-type.outputs.bump_type }}"
+          echo "Commit: ${{ github.sha }}"
           echo "==========================================="
-          echo ""
-          echo "📌 Image tags pushed:"
-          echo "  - latest"
-          echo "  - ${{ steps.version.outputs.new_version }}"
-          echo "  - ${{ steps.version.outputs.major_minor }}"
-          echo "  - ${{ steps.version.outputs.major }}"
-          echo "  - ${{ github.sha }}"
+          

@@ -13,6 +13,7 @@ import uvicorn
 app = FastAPI(title="Maxwell DeepSeek Tool-Enabled Agent", version="1.0")
 
 # Define tools for agent
+# Python Decorator
 @tool
 def calculate_shipping_cost(weight_kg: float, distance_km: float) -> str:
     """Calculate shipping costs. Use when user asks about freight or logistics fees"""

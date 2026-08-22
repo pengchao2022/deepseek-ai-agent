@@ -65,7 +65,6 @@ jobs:
             
           echo "All tags found in ECR: $ALL_TAGS"
           
-          # 筛选出标准的语义版本号并按版本排序取最后一个（最新的）
           LATEST_VERSION=$(echo "$ALL_TAGS" | tr '\t' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
           
           echo "Detected LATEST_VERSION from ECR: '$LATEST_VERSION'"
@@ -109,7 +108,7 @@ jobs:
           echo "major_minor=${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
           echo "✅ Final Calculated New version: $NEW_VERSION"
 
-          
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2

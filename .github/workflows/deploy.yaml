@@ -3,17 +3,17 @@ name: Build and Push to AWS ECR
 on:
   push:
     branches:
-      - main  
+      - main
 
 permissions:
-  id-token: write  
-  contents: read
+  id-token: write
+  contents: read  # 只需要读取权限
 
 env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: 317429619308.dkr.ecr.us-east-1.amazonaws.com
   ECR_REPOSITORY: deepseek-ai-agent
-  AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }} 
+  AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
 
 jobs:
   build-and-push:
@@ -23,21 +23,97 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Determine version bump type
+        id: bump-type
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit message: $COMMIT_MSG"
+          
+          if echo "$COMMIT_MSG" | grep -qiE "BREAKING CHANGE:|!:|MAJOR:"; then
+            echo "bump_type=major" >> $GITHUB_OUTPUT
+            echo "Bump type: MAJOR"
+          elif echo "$COMMIT_MSG" | grep -qiE "feat:|MINOR:"; then
+            echo "bump_type=minor" >> $GITHUB_OUTPUT
+            echo "Bump type: MINOR"
+          else
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+            echo "Bump type: PATCH"
+          fi
 
+    
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+     
+      - name: Calculate next version from ECR
+        id: version
+        run: |
+          # 查询 ECR 中所有语义版本标签 (如 1.2.3)
+          echo "Querying ECR for existing versions..."
           
+          # 获取所有镜像标签，提取语义版本号
+          LATEST_VERSION=$(aws ecr describe-images \
+            --repository-name ${{ env.ECR_REPOSITORY }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'imageDetails[].imageTags[]' \
+            --output text 2>/dev/null | \
+            grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
+            sort -V | \
+            tail -n 1 || echo "")
+          
+          if [[ -n "$LATEST_VERSION" ]]; then
+            echo "Latest version in ECR: $LATEST_VERSION"
+            MAJOR=$(echo "$LATEST_VERSION" | cut -d'.' -f1)
+            MINOR=$(echo "$LATEST_VERSION" | cut -d'.' -f2)
+            PATCH=$(echo "$LATEST_VERSION" | cut -d'.' -f3)
+          else
+            # ECR 中没有版本，从 0.0.0 开始
+            MAJOR=0
+            MINOR=0
+            PATCH=0
+            echo "No existing version found, starting from 0.0.0"
+          fi
+          
+          # 根据 commit 类型递增版本
+          BUMP_TYPE="${{ steps.bump-type.outputs.bump_type }}"
+          
+          case "$BUMP_TYPE" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          # 构建新版本号
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          echo "major_minor=${MAJOR}.${MINOR}" >> $GITHUB_OUTPUT
+          echo "✅ New version: $NEW_VERSION"
+
+     
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 4. 构建并推送 Docker 镜像到 ECR
+     
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
@@ -46,6 +122,30 @@ jobs:
           push: true
           tags: |
             ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.version.outputs.new_version }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.version.outputs.major_minor }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.version.outputs.major }}
             ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.new_version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.date.outputs.date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+    
+      - name: Output build summary
+        run: |
+          echo "==========================================="
+          echo "✅ Build completed successfully!"
+          echo "📦 Version: ${{ steps.version.outputs.new_version }}"
+          echo "🔄 Bump type: ${{ steps.bump-type.outputs.bump_type }}"
+          echo "📝 Commit: ${{ github.sha }}"
+          echo "==========================================="
+          echo ""
+          echo "📌 Image tags pushed:"
+          echo "  - latest"
+          echo "  - ${{ steps.version.outputs.new_version }}"
+          echo "  - ${{ steps.version.outputs.major_minor }}"
+          echo "  - ${{ steps.version.outputs.major }}"
+          echo "  - ${{ github.sha }}"

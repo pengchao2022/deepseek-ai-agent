@@ -35,7 +35,7 @@ llm = ChatOpenAI(
 )
 llm_with_tools = llm.bind_tools(tools)
 
-# 3. 使用 LangGraph 标准的 MessagesState
+# 使用 LangGraph 标准的 MessagesState
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -59,7 +59,7 @@ workflow.add_conditional_edges("agent", should_continue, {"tools": "tools", END:
 workflow.add_edge("tools", "agent")
 agent_app = workflow.compile()
 
-# 4. FastAPI 接口暴露
+# FastAPI 
 class ChatRequest(BaseModel):
     prompt: str = None
     contents: str = None

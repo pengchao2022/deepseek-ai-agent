@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# 设置工作目录
+# set up working directory
 WORKDIR /app
 
 # 安装依赖

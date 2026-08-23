@@ -3,7 +3,7 @@ FROM python:3.11-slim
 # set up working directory
 WORKDIR /app
 
-# 安装依赖
+# install dependences
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

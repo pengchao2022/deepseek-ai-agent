@@ -20,10 +20,12 @@ env:
   ECR_REGISTRY: 317429619308.dkr.ecr.us-east-1.amazonaws.com
   ECR_REPOSITORY: deepseek-ai-agent
   AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+  GITOPS_REPO: pengchao2022/deepseek-ai-agent-cd
 
 jobs:
   python-ci:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
 
     steps:
       - name: Checkout code
@@ -131,3 +133,12 @@ jobs:
           echo "Version: ${{ steps.version.outputs.new_version }}"
           echo "Bump type: ${{ steps.bump-type.outputs.bump_type }}"
           echo "Commit: ${{ github.sha }}"
+
+
+      - name: Trigger Renovate in GitOps repo
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITOPS_PAT }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ env.GITOPS_REPO }}/dispatches \
+            -d '{"event_type":"run-renovate"}'

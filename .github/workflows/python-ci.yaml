@@ -10,6 +10,17 @@ on:
       - 'requirements.txt' 
       - '.github/workflows/python-ci.yaml'  
 
+  push:
+    branches:
+      - "feature/GTP-54273-python-agent-added-renovate"
+
+    paths:
+      - 'app/**'           
+      - 'Dockerfile'       
+      - 'requirements.txt' 
+      - '.github/workflows/python-ci.yaml'  
+
+
 
 permissions:
   id-token: write

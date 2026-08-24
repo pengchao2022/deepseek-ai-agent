@@ -69,7 +69,47 @@ def get_system_status(service_name: str) -> str:
     except Exception as e:
         return f"Failed to fetch real-time EKS cluster status due to error: {str(e)}"
 
-tools = [calculate_shipping_cost, get_system_status]
+@tool
+def get_node_memory_usage() -> str:
+    """Check the CPU and Memory usage of all nodes in the EKS cluster.
+    Use when user asks about node health, node memory, or cluster node capacity.
+    """
+    try:
+        try:
+            config.load_incluster_config()
+        except Exception:
+            config.load_kube_config()
+
+        # Metrics API 属于 CustomObjectsApi
+        api = client.CustomObjectsApi()
+
+        # 获取集群中所有节点的 metrics 数据
+        metrics = api.list_cluster_custom_object(
+            group="metrics.k8s.io", 
+            version="v1beta1", 
+            plural="nodes"
+        )
+
+        reports = []
+        for item in metrics.get("items", []):
+            node_name = item["metadata"]["name"]
+            usage = item["usage"]
+            memory_usage = usage.get("memory", "N/A")
+            cpu_usage = usage.get("cpu", "N/A")
+            reports.append(
+                f"- Node: {node_name} | CPU Usage: {cpu_usage} | Memory Usage: {memory_usage}"
+            )
+
+        if not reports:
+            return "No node metrics found. Please ensure metrics-server is installed in the cluster."
+
+        return "Real-time EKS Node Resource Usage:\n" + "\n".join(reports)
+
+    except Exception as e:
+        return f"Failed to fetch node metrics. Make sure metrics-server is running. Error: {str(e)}"
+
+# 注册所有工具
+tools = [calculate_shipping_cost, get_system_status, get_node_memory_usage]
 
 # initialization deepseek with customer tools
 llm = ChatOpenAI(

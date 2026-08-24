@@ -36,7 +36,7 @@ llm = ChatOpenAI(
 )
 llm_with_tools = llm.bind_tools(tools)
 
-# Use LangGraph 标准的 MessagesState
+# Use LangGraph standard MessagesState
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
 

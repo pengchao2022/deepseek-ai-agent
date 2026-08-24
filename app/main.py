@@ -60,7 +60,7 @@ workflow.add_conditional_edges("agent", should_continue, {"tools": "tools", END:
 workflow.add_edge("tools", "agent")
 agent_app = workflow.compile()
 
-# FastAPI 
+# FastAPI define
 class ChatRequest(BaseModel):
     prompt: str = None
     contents: str = None

@@ -8,12 +8,12 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
+from kubernetes import client, config
 import uvicorn
 
 app = FastAPI(title="Maxwell DeepSeek Tool-Enabled Agent", version="1.0")
 
 # Define tools for agent
-# Python Decorator
 @tool
 def calculate_shipping_cost(weight_kg: float, distance_km: float) -> str:
     """Calculate shipping costs. Use when user asks about freight or logistics fees"""
@@ -22,8 +22,52 @@ def calculate_shipping_cost(weight_kg: float, distance_km: float) -> str:
 
 @tool
 def get_system_status(service_name: str) -> str:
-    """Check the health status of a backend service. Use when user asks about server or service health"""
-    return f"Service [{service_name}] currently running on EKS cluster system-infra nodes works properly CPU usage"
+    """Check the real health status of a backend service or pods on the EKS cluster. 
+    Use when user asks about server, service health, or Kubernetes deployment status.
+    """
+    try:
+        # 尝试加载集群内部配置（当运行在 EKS Pod 中时自动生效）
+        try:
+            config.load_incluster_config()
+        except Exception:
+            # 如果在本地开发环境测试，可以尝试加载本地 kubeconfig
+            config.load_kube_config()
+
+        v1 = client.CoreV1Api()
+        
+        # 默认查询你的应用所在的命名空间，也可以根据参数灵活调整
+        namespace = os.environ.get("TARGET_NAMESPACE", "ai-agent")
+        
+        # 通过标签或名称模糊匹配查询 Pod
+        pods = v1.list_namespaced_pod(
+            namespace=namespace,
+            label_selector=f"app.kubernetes.io/name={service_name}"
+        )
+        
+        # 如果通过标签没找到，尝试直接列出该 namespace 下所有 Pod 供大模型分析
+        if not pods.items:
+            pods = v1.list_namespaced_pod(namespace=namespace)
+
+        if not pods.items:
+            return f"No pods found in namespace [{namespace}] for service [{service_name}]."
+
+        status_reports = []
+        for pod in pods.items:
+            pod_name = pod.metadata.name
+            phase = pod.status.phase  # Running, Pending, Failed 等
+            restarts = 0
+            if pod.status.container_statuses:
+                restarts = pod.status.container_statuses[0].restart_count
+                
+            ip = pod.status.pod_ip or "N/A"
+            status_reports.append(
+                f"- Pod: {pod_name} | Status: {phase} | Restarts: {restarts} | IP: {ip}"
+            )
+
+        return f"Real-time EKS Cluster Status (Namespace: {namespace}):\n" + "\n".join(status_reports)
+
+    except Exception as e:
+        return f"Failed to fetch real-time EKS cluster status due to error: {str(e)}"
 
 tools = [calculate_shipping_cost, get_system_status]
 

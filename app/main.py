@@ -22,7 +22,7 @@ def calculate_shipping_cost(weight_kg: float, distance_km: float) -> str:
 
 @tool
 def get_system_status(service_name: str) -> str:
-    """查询指定后端服务的运行状态。当用户询问服务器或服务健康状况时调用此工具。"""
+    """Check the health status of a backend service. Use when user asks about server or service health"""
     return f"Service [{service_name}] currently running on EKS cluster system-infra 节点上，状态正常，CPU 利用率 24%。"
 
 tools = [calculate_shipping_cost, get_system_status]

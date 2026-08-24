@@ -27,7 +27,7 @@ def get_system_status(service_name: str) -> str:
 
 tools = [calculate_shipping_cost, get_system_status]
 
-# 初始化 DeepSeek 大模型并绑定工具（已修改为从环境变量读取 Key）
+# 初始化 DeepSeek 大模型并绑定工具
 llm = ChatOpenAI(
     model="deepseek-v4-pro",
     openai_api_key=os.environ.get("DEEPSEEK_API_KEY"),  

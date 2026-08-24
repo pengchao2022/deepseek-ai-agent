@@ -10,6 +10,17 @@ on:
       - 'requirements.txt' 
       - '.github/workflows/python-ci.yaml'  
 
+  push:
+    branches:
+      - "feature/GTP-54273-python-agent-added-renovate"
+
+    paths:
+      - 'app/**'           
+      - 'Dockerfile'       
+      - 'requirements.txt' 
+      - '.github/workflows/python-ci.yaml'  
+
+
 
 permissions:
   id-token: write
@@ -25,7 +36,7 @@ env:
 jobs:
   python-ci:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
+   # if: github.event.pull_request.merged == true
 
     steps:
       - name: Checkout code

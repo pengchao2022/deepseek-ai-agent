@@ -26,25 +26,19 @@ def get_system_status(service_name: str) -> str:
     Use when user asks about server, service health, or Kubernetes deployment status.
     """
     try:
-        # 尝试加载集群内部配置（当运行在 EKS Pod 中时自动生效）
         try:
             config.load_incluster_config()
         except Exception:
-            # 如果在本地开发环境测试，可以尝试加载本地 kubeconfig
             config.load_kube_config()
 
         v1 = client.CoreV1Api()
-        
-        # 默认查询你的应用所在的命名空间，也可以根据参数灵活调整
         namespace = os.environ.get("TARGET_NAMESPACE", "ai-agent")
         
-        # 通过标签或名称模糊匹配查询 Pod
         pods = v1.list_namespaced_pod(
             namespace=namespace,
             label_selector=f"app.kubernetes.io/name={service_name}"
         )
         
-        # 如果通过标签没找到，尝试直接列出该 namespace 下所有 Pod 供大模型分析
         if not pods.items:
             pods = v1.list_namespaced_pod(namespace=namespace)
 
@@ -80,10 +74,7 @@ def get_node_memory_usage() -> str:
         except Exception:
             config.load_kube_config()
 
-        # Metrics API 属于 CustomObjectsApi
         api = client.CustomObjectsApi()
-
-        # 获取集群中所有节点的 metrics 数据
         metrics = api.list_cluster_custom_object(
             group="metrics.k8s.io", 
             version="v1beta1", 
@@ -108,8 +99,37 @@ def get_node_memory_usage() -> str:
     except Exception as e:
         return f"Failed to fetch node metrics. Make sure metrics-server is running. Error: {str(e)}"
 
-# 注册所有工具
-tools = [calculate_shipping_cost, get_system_status, get_node_memory_usage]
+@tool
+def get_pod_logs(pod_name: str, tail_lines: int = 50) -> str:
+    """Fetch the recent standard output logs of a specific Kubernetes pod for debugging and troubleshooting.
+    Use when user asks to check logs, review errors, or debug a specific pod.
+    """
+    try:
+        try:
+            config.load_incluster_config()
+        except Exception:
+            config.load_kube_config()
+
+        v1 = client.CoreV1Api()
+        namespace = os.environ.get("TARGET_NAMESPACE", "ai-agent")
+
+        # 读取指定 Pod 的日志
+        logs = v1.read_namespaced_pod_log(
+            name=pod_name,
+            namespace=namespace,
+            tail_lines=tail_lines
+        )
+
+        if not logs:
+            return f"Pod [{pod_name}] in namespace [{namespace}] has empty logs."
+
+        return f"Recent logs for Pod [{pod_name}] (last {tail_lines} lines):\n{logs}"
+
+    except Exception as e:
+        return f"Failed to fetch logs for pod [{pod_name}]. Error: {str(e)}"
+
+# 注册所有工具（包含新增的日志查询工具）
+tools = [calculate_shipping_cost, get_system_status, get_node_memory_usage, get_pod_logs]
 
 # initialization deepseek with customer tools
 llm = ChatOpenAI(

@@ -113,7 +113,6 @@ def get_pod_logs(pod_name: str, tail_lines: int = 50) -> str:
         v1 = client.CoreV1Api()
         namespace = os.environ.get("TARGET_NAMESPACE", "ai-agent")
 
-        # 读取指定 Pod 的日志
         logs = v1.read_namespaced_pod_log(
             name=pod_name,
             namespace=namespace,
@@ -128,12 +127,12 @@ def get_pod_logs(pod_name: str, tail_lines: int = 50) -> str:
     except Exception as e:
         return f"Failed to fetch logs for pod [{pod_name}]. Error: {str(e)}"
 
-# 注册所有工具（包含新增的日志查询工具）
+# 注册所有工具
 tools = [calculate_shipping_cost, get_system_status, get_node_memory_usage, get_pod_logs]
 
 # initialization deepseek with customer tools
 llm = ChatOpenAI(
-    model="deepseek-v4-pro",
+    model="deepseek-v4-pro", # 确认你的 DeepSeek 模型名称是否正确
     openai_api_key=os.environ.get("DEEPSEEK_API_KEY"),  
     openai_api_base="https://api.deepseek.com",       
     temperature=0.1
@@ -175,6 +174,11 @@ class ChatRequest(BaseModel):
             raise ValueError("Either 'prompt' or 'contents' must be provided.")
         return msg
 
+@app.get("/")
+def read_root():
+    """根路径处理，消除 ALB / 健康检查的 404 日志"""
+    return {"status": "running", "service": "Maxwell DeepSeek Tool-Enabled Agent"}
+
 @app.post("/chat")
 def chat_with_agent(req: ChatRequest):
     try:
@@ -194,4 +198,5 @@ def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
